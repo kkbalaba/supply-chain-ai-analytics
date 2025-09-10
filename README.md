@@ -6,7 +6,7 @@
 
 ## 📊 Project Overview
 
-A comprehensive AI/ML-powered supply chain analytics and allocation management platform that demonstrates enterprise-level capabilities for demand forecasting, inventory optimization, real-time allocation decisions, and advanced supply chain analytics. This project showcases practical implementation of machine learning solutions for complex supply chain challenges including S&OP/S&OE planning, geographic flow analysis, and intelligent allocation engines.
+A comprehensive AI/ML-powered supply chain analytics, Optimization and allocation management platform that demonstrates enterprise-level capabilities for demand forecasting, inventory optimization, real-time allocation decisions, and advanced supply chain analytics. This project showcases practical implementation of machine learning solutions for complex supply chain challenges including S&OP/S&OE planning, geographic flow analysis, and intelligent allocation engines.
 
 ## 🎯 Business Objectives
 
