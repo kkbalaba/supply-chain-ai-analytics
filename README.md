@@ -52,13 +52,35 @@ An end-to-end AI/ML-powered supply chain analytics platform that demonstrates ad
 ## 📁 Project Structure
 
 ```
-├── data/                 # Raw and processed datasets
-├── notebooks/           # Jupyter notebooks for analysis
-├── src/                # Core Python modules
-├── dashboard/          # Streamlit web application
-├── results/            # Model outputs and reports
-├── docs/               # Project documentation
-└── tests/              # Unit tests
+├── data/                           # Raw and processed datasets
+│   ├── raw/                       # Original datasets (Walmart, supply chain)
+│   ├── processed/                 # Cleaned and feature-engineered data
+│   └── geographic/                # Geographic and location data
+├── notebooks/                     # Jupyter notebooks for analysis
+│   ├── 01_data_exploration.ipynb
+│   ├── 02_multi_forecast_analysis.ipynb
+│   ├── 03_push_pull_analysis.ipynb
+│   ├── 04_allocation_optimization.ipynb
+│   └── 05_geographic_analysis.ipynb
+├── src/                          # Core Python modules
+│   ├── forecasting/              # Multi-forecast engine
+│   ├── allocation/               # Real-time allocation algorithms
+│   ├── optimization/             # Inventory and transfer optimization
+│   ├── geographic/               # Geographic analysis and mapping
+│   └── planning_horizons/        # S&OP/S&OE timeline management
+├── dashboard/                    # Streamlit web application
+│   ├── pages/                   # Multi-page dashboard
+│   │   ├── executive_overview.py
+│   │   ├── multi_forecast.py
+│   │   ├── push_pull_analytics.py
+│   │   ├── allocation_engine.py
+│   │   ├── transfer_optimizer.py
+│   │   ├── geographic_flows.py
+│   │   └── planning_horizons.py
+│   └── components/              # Custom Streamlit components
+├── results/                     # Model outputs and reports
+├── docs/                       # Project documentation
+└── tests/                      # Unit tests
 ```
 
 ## 🚀 Quick Start
