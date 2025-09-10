@@ -1,4 +1,4 @@
-# 🚀 AI-Powered Supply Chain Analytics & Allocation Management Suite
+# 🚀 AI-OMS
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-red.svg)](https://streamlit.io/)
