@@ -9,6 +9,7 @@ import streamlit as st
 import pandas as pd
 import sys
 import os
+from typing import Dict
 
 # Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -137,62 +138,309 @@ def show_data_management():
     )
     
     if data_option == "📤 Upload Your Data":
-        st.write("### 📤 Upload Supply Chain Data")
-        uploaded_file = st.file_uploader(
-            "Choose a CSV or Excel file",
-            type=['csv', 'xlsx', 'xls'],
-            help="Upload your sales, inventory, or customer data"
-        )
-        
-        if uploaded_file:
-            st.success("File uploaded successfully! Data processing coming soon.")
+        show_data_upload_section()
             
     elif data_option == "🎲 Generate Mock Data":
-        st.write("### 🎲 Generate Mock Data")
-        st.write("Create realistic supply chain scenarios for testing and demonstration.")
-        
-        # Mock data parameters
-        col1, col2 = st.columns(2)
-        with col1:
-            num_products = st.slider("Number of Products", 10, 500, 50)
-            num_customers = st.slider("Number of Customers", 20, 1000, 100)
-        with col2:
-            time_periods = st.slider("Months of History", 6, 36, 24)
-            industry = st.selectbox("Industry", ["Retail", "Manufacturing", "Pharmaceutical"])
-        
-        if st.button("🚀 Generate Data", type="primary"):
-            st.success("Mock data generation coming soon!")
+        show_mock_data_section()
             
     else:  # Download Templates
-        st.write("### 📋 Download Data Templates")
-        st.write("Download CSV templates to format your data correctly:")
+        try:
+            from data_management.data_templates import DataTemplates
+            
+            templates = DataTemplates()
+            template_result = templates.template_interface()
+            
+            # Store selected industry for later use
+            if template_result['industry']:
+                st.session_state.selected_industry = template_result['industry']
+                st.session_state.industry_templates = template_result['templates']
+                
+        except ImportError as e:
+            st.error(f"Template module error: {e}")
+            # Fallback to simple templates
+            st.write("### 📋 Basic Templates")
+            basic_templates = {
+                "Sales Data": "date,product_id,customer_id,quantity,unit_price",
+                "Inventory Data": "product_id,location_id,quantity_on_hand,reorder_point",
+                "Customer Data": "customer_id,customer_name,segment,country"
+            }
+            
+            for name, headers in basic_templates.items():
+                st.download_button(
+                    label=f"📥 {name} Template",
+                    data=headers,
+                    file_name=f"{name.lower().replace(' ', '_')}_template.csv",
+                    mime="text/csv"
+                )
+
+
+def show_data_upload_section():
+    """Enhanced data upload with real functionality"""
+    st.write("### 📤 Upload Your Supply Chain Data")
+    
+    try:
+        from data_management.file_upload import DataUploadManager
         
-        templates = {
-            "Sales Data": "date,product_id,customer_id,quantity,unit_price",
-            "Inventory Data": "product_id,location_id,quantity_on_hand,reorder_point",
-            "Customer Data": "customer_id,customer_name,segment,country"
-        }
+        upload_manager = DataUploadManager()
+        uploaded_data = upload_manager.upload_interface()
         
-        for name, headers in templates.items():
-            st.download_button(
-                label=f"📥 {name} Template",
-                data=headers,
-                file_name=f"{name.lower().replace(' ', '_')}_template.csv",
-                mime="text/csv"
-            )
+        if uploaded_data is not None:
+            # Store in session state
+            st.session_state.uploaded_data = uploaded_data
+            st.session_state.data_source = "uploaded"
+            
+            # Success actions
+            st.success("🎉 Data uploaded successfully! Ready for analysis.")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📊 View Basic Analysis"):
+                    st.session_state.show_analysis = True
+                    st.rerun()
+            with col2:
+                # Download processed data
+                csv = uploaded_data.to_csv(index=False)
+                st.download_button(
+                    label="💾 Download Processed Data",
+                    data=csv,
+                    file_name="processed_data.csv",
+                    mime="text/csv"
+                )
+    
+    except ImportError as e:
+        st.error(f"Module import error: {e}")
+        st.info("Make sure you're running from the project root directory")
+        st.code("streamlit run dashboard/app.py")
+    
+    # Show analysis if requested
+    if st.session_state.get('show_analysis', False) and 'uploaded_data' in st.session_state:
+        show_basic_analysis()
+
+
+def show_basic_analysis():
+    """Show basic analysis of uploaded data"""
+    df = st.session_state.uploaded_data
+    
+    st.write("### 📈 Basic Data Analysis")
+    
+    # Data overview
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Rows", f"{len(df):,}")
+    with col2:
+        st.metric("Total Columns", len(df.columns))
+    with col3:
+        st.metric("Memory Usage", f"{df.memory_usage(deep=True).sum() / 1024:.1f} KB")
+    
+    # Numeric analysis
+    numeric_cols = df.select_dtypes(include=['number']).columns
+    if len(numeric_cols) > 0:
+        st.write("**Numeric Summary:**")
+        st.dataframe(df[numeric_cols].describe())
+        
+        # Simple visualization
+        if len(numeric_cols) > 0:
+            chart_col = st.selectbox("Select column to visualize:", numeric_cols)
+            if chart_col:
+                chart_data = df[chart_col].value_counts().head(10)
+                if len(chart_data) > 1:
+                    st.bar_chart(chart_data)
+                else:
+                    st.write(f"Only one unique value found: {chart_data.index[0]}")
+    
+    # Text column analysis
+    text_cols = df.select_dtypes(include=['object']).columns
+    if len(text_cols) > 0:
+        st.write("**Text Columns Summary:**")
+        for col in text_cols[:5]:
+            unique_vals = df[col].nunique()
+            st.write(f"- **{col}**: {unique_vals} unique values")
+            if unique_vals <= 10:
+                st.write(f"  Values: {list(df[col].unique())}")
+    
+    # Data sample
+    st.write("**Data Sample:**")
+    st.dataframe(df.head())
+
+
+def show_mock_data_section():
+    """Mock data generation interface"""
+    st.write("### 🎲 Generate Realistic Mock Data")
+    st.write("Create comprehensive supply chain datasets with realistic patterns and relationships.")
+    
+    try:
+        from data_management.mock_data_generator import MockDataGenerator
+        
+        generator = MockDataGenerator()
+        mock_datasets = generator.generation_interface()
+        
+        if mock_datasets:
+            # Store in session state
+            st.session_state.mock_datasets = mock_datasets
+            st.session_state.data_source = "mock"
+            
+            # Success message and next steps
+            st.success("✅ Mock data generated successfully!")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📊 Analyze Generated Data"):
+                    if 'sales' in mock_datasets:
+                        st.session_state.uploaded_data = mock_datasets['sales']
+                        st.session_state.show_analysis = True
+                        st.rerun()
+            
+            with col2:
+                if st.button("🌍 View All Datasets"):
+                    st.session_state.show_all_datasets = True
+                    st.rerun()
+            
+            # Show comprehensive data view if requested
+            if st.session_state.get('show_all_datasets', False):
+                show_comprehensive_data_view(mock_datasets)
+    
+    except ImportError as e:
+        st.error(f"Module import error: {e}")
+        st.info("Make sure the mock data generator module is properly installed")
+
+
+def show_comprehensive_data_view(datasets: Dict[str, pd.DataFrame]):
+    """Show comprehensive view of all generated datasets"""
+    st.write("### 📊 Complete Supply Chain Dataset Overview")
+    
+    # Dataset relationships
+    st.write("**Dataset Relationships:**")
+    st.write("- Products ↔ Sales (product_id)")
+    st.write("- Customers ↔ Sales (customer_id)")
+    st.write("- Products ↔ Inventory (product_id)")
+    st.write("- Suppliers ↔ Products (product_id)")
+    
+    # Key metrics across datasets
+    if 'sales' in datasets and 'customers' in datasets and 'products' in datasets:
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            total_revenue = datasets['sales']['total_amount'].sum()
+            st.metric("Total Revenue", f"${total_revenue:,.0f}")
+            
+        with col2:
+            avg_order_value = datasets['sales']['total_amount'].mean()
+            st.metric("Avg Order Value", f"${avg_order_value:.2f}")
+            
+        with col3:
+            active_customers = datasets['sales']['customer_id'].nunique()
+            st.metric("Active Customers", f"{active_customers}")
+    
+    # Individual dataset tabs
+    tab_names = list(datasets.keys())
+    tabs = st.tabs([name.title() for name in tab_names])
+    
+    for i, (name, df) in enumerate(datasets.items()):
+        with tabs[i]:
+            col1, col2 = st.columns([3, 1])
+            
+            with col1:
+                st.dataframe(df, height=300)
+            
+            with col2:
+                st.write(f"**{name.title()} Info:**")
+                st.write(f"Rows: {len(df):,}")
+                st.write(f"Columns: {len(df.columns)}")
+                
+                # Dataset-specific insights
+                if name == 'sales':
+                    date_range = pd.to_datetime(df['date'])
+                    st.write(f"Date Range: {date_range.min().strftime('%Y-%m-%d')} to {date_range.max().strftime('%Y-%m-%d')}")
+                elif name == 'customers':
+                    segments = df['segment'].value_counts()
+                    st.write("**Segments:**")
+                    for segment, count in segments.items():
+                        st.write(f"- {segment}: {count}")
+                elif name == 'products':
+                    categories = df['category'].value_counts()
+                    st.write("**Categories:**")
+                    for category, count in categories.head(3).items():
+                        st.write(f"- {category}: {count}")
+                
+                # Download button
+                csv = df.to_csv(index=False)
+                st.download_button(
+                    label=f"📥 Download {name.title()}",
+                    data=csv,
+                    file_name=f"mock_{name}.csv",
+                    mime="text/csv",
+                    key=f"download_{name}"
+                )
 
 
 def show_analytics():
     """Analytics section"""
     st.write("## 📈 Advanced Supply Chain Analytics")
-    st.info("🚧 Analytics modules in development. Coming soon!")
     
-    st.write("**Planned Analytics Modules:**")
-    st.write("- 📊 Multi-Forecast Analysis")
-    st.write("- 🔄 Push-Pull Point Optimization")
-    st.write("- 📅 S&OP/S&OE Planning Horizons")
-    st.write("- 🎯 Demand Forecasting")
-    st.write("- 📦 Inventory Optimization")
+    # Check for available data
+    if not ('uploaded_data' in st.session_state or 'mock_datasets' in st.session_state):
+        st.warning("⚠️ No data available. Please upload data or generate mock data first.")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("📁 Go to Data Management"):
+                st.experimental_rerun()
+        return
+    
+    # Analytics module selection
+    analytics_module = st.selectbox(
+        "Choose Analytics Module:",
+        [
+            "📈 Demand Forecasting",
+            "📊 Data Exploration", 
+            "📦 Inventory Analysis"
+        ]
+    )
+    
+    if analytics_module == "📈 Demand Forecasting":
+        show_demand_forecasting()
+    elif analytics_module == "📊 Data Exploration":
+        show_data_exploration()
+    elif analytics_module == "📦 Inventory Analysis":
+        show_inventory_analysis()
+
+def show_demand_forecasting():
+    """Demand forecasting interface"""
+    try:
+        from forecasting.demand_forecasting import DemandForecaster
+        
+        # Get available data
+        if 'uploaded_data' in st.session_state:
+            data = st.session_state.uploaded_data
+            st.info("Using uploaded data for forecasting")
+        elif 'mock_datasets' in st.session_state and 'sales' in st.session_state.mock_datasets:
+            data = st.session_state.mock_datasets['sales']
+            st.info("Using generated mock data for forecasting")
+        else:
+            st.error("No suitable data found for forecasting")
+            return
+        
+        # Run forecasting
+        forecaster = DemandForecaster()
+        forecast_result = forecaster.forecasting_interface(data)
+        
+        if forecast_result:
+            st.session_state.latest_forecast = forecast_result
+            
+    except ImportError as e:
+        st.error(f"Forecasting module error: {e}")
+        st.info("Forecasting module in development")
+
+
+def show_data_exploration():
+    """Data exploration interface"""
+    st.write("### 📊 Data Exploration")
+    st.info("🚧 Data exploration module coming soon!")
+
+
+def show_inventory_analysis():
+    """Inventory analysis interface"""
+    st.write("### 📦 Inventory Analysis")
+    st.info("🚧 Inventory analysis module coming soon!")
 
 
 def show_allocation_engine():
